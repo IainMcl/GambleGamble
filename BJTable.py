@@ -3,6 +3,7 @@ from Deck import Deck
 from BJDealer import BJDealer
 from Player import Player
 from BJPlayer import BJPlayer
+from typing import Optional, List
 
 
 class BJTable(ITable):
@@ -25,7 +26,7 @@ class BJTable(ITable):
 
     def deal(self):
         """
-        deal 
+        deal
 
         Deals two face up cards to each player and one face up and one face down to
         the dealer.
@@ -39,7 +40,7 @@ class BJTable(ITable):
 
     def player_hit(self, player: BJPlayer):
         """
-        player_hit 
+        player_hit
 
         player hits and receives a card.
         """
@@ -50,7 +51,7 @@ class BJTable(ITable):
 
     def is_winner(self, player: BJPlayer) -> float:
         """
-        is_winner 
+        is_winner
 
         Returns 1 if player has won, 0 if the dealer has won and 0.5 if a push.
         """
@@ -67,7 +68,7 @@ class BJTable(ITable):
 
     def reset(self):
         """
-        reset 
+        reset
 
         Resets the table for the next hand.
         """
@@ -75,3 +76,87 @@ class BJTable(ITable):
         for player in self.players:
             player.reset()
         self.deck.shuffle()
+
+    def get_player_options(self, player: BJPlayer) -> List[str]:
+        if player.is_blackjack() or player.is_busted() or player.get_hand_value() == 21:
+            options = ["Stand"]
+        elif self.dealer.hand[0].value == 1:
+            options = ["Hit", "Stand", "Double", "Insurance"]
+        elif len(player.hand) == 2:
+            options = ["Hit", "Stand", "Double", "Surrender"]
+            if player.hand[0].value == player.hand[1].value:
+                options.append("Split")
+        else:
+            options = ["Hit", "Stand"]
+        return options
+
+    def play_hand(self, player: BJPlayer, option: str) -> None:
+        """
+        play_hand
+
+        Plays a hand of Blackjack for the player.
+        returns False if the player is busted or has chosen to stand.
+        returns True if the player has chosen to hit.
+        """
+        if option == "Hit":
+            self.player_hit(player)
+            return True
+        elif option == "Stand":
+            return False
+        elif option == "Double":
+            self.take_bets(player, player.bet * 2)
+            self.player_hit(player)
+            return False
+        elif option == "Insurance":
+            if self.dealer.hand[0].value == 1:
+                player.insurance = True
+                self.take_bets(player, player.bet / 2)
+            return True
+        elif option == "Surrender":
+            player.surrendered = True
+            return False
+        elif option == "Split":
+            return False
+        else:
+            raise Exception(f"{option} is not a valid option.")
+
+    def take_bets(self, player: BJPlayer, bet: float) -> None:
+        """
+        take_bets
+
+        Takes the player's bet and checks to make sure it is valid.
+        """
+        if bet <= 0:
+            raise Exception("Bet must be greater than 0.")
+        elif bet > player.stack:
+            raise Exception(
+                "Bet must be less than or equal to the player's stack.")
+        else:
+            player.bet = bet
+            player.stack -= bet
+
+    def pay_out(self, player: BJPlayer) -> float:
+        """
+        pay_out
+
+        Pays the player their bet and resets the player for the next hand.
+        """
+        if player.surrendered:
+            win = player.bet / 2
+            player.stack += win
+            return win
+        elif player.insurance and self.dealer.is_blackjack():
+            # insurance pays 2 to 1
+            player.stack += player.bet
+            return player.bet
+        elif self.is_winner(player) == 1:
+            win = player.bet * 2
+            player.stack += win
+            return win
+        elif self.is_winner(player) == 0.5:
+            player.stack += player.bet
+            return player.bet
+        elif self.is_winner(player) == 0:
+            return 0
+        else:
+            raise("Iain you messed up with pay out options.")

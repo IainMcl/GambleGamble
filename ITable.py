@@ -35,3 +35,10 @@ class ITable(ABC):
 
     def remove_player(self, player: Player) -> None:
         self.players.remove(player)
+
+    @abstractmethod
+    def get_player_options(self, player: Player) -> List[str]:
+        """
+        Returns a list of options for the player.
+        """
+        pass
